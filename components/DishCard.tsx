@@ -73,7 +73,8 @@ const DishCard: React.FC<DishCardProps> = ({ dish, onView, onDelete, onRefreshIm
         </div>
       )}
 
-      <div className="p-5 pl-7 flex-1 flex flex-col">
+      {/* Content area with z-20 to ensure it sits above the decorative strip */}
+      <div className="p-5 pl-7 flex-1 flex flex-col relative z-20">
         <div className="flex justify-between items-start mb-3">
           <div className="flex flex-wrap gap-1.5">
             <span className="px-2.5 py-1 bg-orange-50 text-orange-600 text-[10px] font-black rounded-lg uppercase tracking-wider border border-orange-100">
@@ -86,8 +87,9 @@ const DishCard: React.FC<DishCardProps> = ({ dish, onView, onDelete, onRefreshIm
             )}
           </div>
           <button 
+            type="button"
             onClick={(e) => { e.stopPropagation(); onDelete(dish.id); }}
-            className="text-gray-300 hover:text-red-500 transition-colors p-1"
+            className="text-gray-400 hover:text-red-500 hover:bg-red-100 transition-all p-3 rounded-full -mr-2 -mt-2"
             title="删除菜谱"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">

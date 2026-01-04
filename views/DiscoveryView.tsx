@@ -59,7 +59,7 @@ const DiscoveryView: React.FC<DiscoveryViewProps> = ({ onAddDish, onViewRecipe, 
       </div>
 
       {loading && cache.length === 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {[1,2,3,4,5,6].map(i => (
             <div key={i} className="bg-white rounded-[2rem] h-[340px] border border-gray-100 p-8 flex flex-col">
                <div className="flex gap-2 mb-6">
@@ -77,7 +77,7 @@ const DiscoveryView: React.FC<DiscoveryViewProps> = ({ onAddDish, onViewRecipe, 
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {cache.map((item, idx) => (
             <div key={idx} className="bg-white border border-gray-100 rounded-[2rem] shadow-sm hover:shadow-xl transition-all p-8 flex flex-col justify-between group h-full">
               <div>

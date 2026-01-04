@@ -27,6 +27,9 @@ const App: React.FC = () => {
   
   const [discoveryCache, setDiscoveryCache] = useState<SuggestedDish[]>([]);
   const [toast, setToast] = useState<{message: string, type: 'success' | 'error'} | null>(null);
+  
+  // Custom Delete Modal State
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     if (toast) {
@@ -153,19 +156,26 @@ const App: React.FC = () => {
     setSyncStatus('saved');
   };
 
-  const removeDish = async (id: string) => {
-    if (window.confirm("确定要删除这道菜谱吗？")) {
-      try {
-        setSyncStatus('syncing');
-        await storageService.deleteDish(id);
-        setDishes(prev => prev.filter(d => d.id !== id));
-        setRecentlyViewedIds(prev => prev.filter(rid => rid !== id));
-        setSyncStatus('saved');
-        showToast("菜谱已删除", 'success');
-      } catch (e) {
-        setSyncStatus('error');
-        showToast("删除失败", 'error');
-      }
+  const requestDeleteDish = (id: string) => {
+    setConfirmDeleteId(id);
+  };
+
+  const executeDeleteDish = async () => {
+    if (!confirmDeleteId) return;
+    const id = confirmDeleteId;
+    
+    try {
+      setSyncStatus('syncing');
+      await storageService.deleteDish(id);
+      setDishes(prev => prev.filter(d => d.id !== id));
+      setRecentlyViewedIds(prev => prev.filter(rid => rid !== id));
+      setSyncStatus('saved');
+      showToast("菜谱已删除", 'success');
+    } catch (e) {
+      setSyncStatus('error');
+      showToast("删除失败", 'error');
+    } finally {
+      setConfirmDeleteId(null);
     }
   };
 
@@ -211,7 +221,7 @@ const App: React.FC = () => {
             pendingDishes={pendingDishes}
             recentlyViewedDishes={recentlyViewedDishes}
             onGenerateInBackground={startBackgroundGeneration}
-            onDeleteDish={removeDish} 
+            onDeleteDish={requestDeleteDish} 
             onViewRecipe={viewRecipe} 
             onBulkUpdate={bulkUpdateDishes}
             onRefreshImage={regenerateDishImage}
@@ -246,7 +256,7 @@ const App: React.FC = () => {
             pendingDishes={pendingDishes}
             recentlyViewedDishes={[]}
             onGenerateInBackground={startBackgroundGeneration}
-            onDeleteDish={removeDish} 
+            onDeleteDish={requestDeleteDish} 
             onViewRecipe={viewRecipe} 
             onBulkUpdate={bulkUpdateDishes}
             onRefreshImage={regenerateDishImage}
@@ -261,49 +271,64 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col max-w-4xl mx-auto bg-white shadow-xl relative">
-      <header className="bg-orange-500 text-white p-6 sticky top-0 z-10 flex flex-col md:flex-row gap-4 justify-between items-center shadow-md">
-        <h1 className="text-2xl font-bold flex items-center gap-2 cursor-pointer" onClick={() => setCurrentView('collection')}>
-          <span className="text-3xl">🍴</span>
-          WhatToEat｜吃了么
+    <div className="min-h-screen flex flex-col w-full max-w-7xl mx-auto bg-white shadow-xl relative">
+      <header className="bg-orange-500 text-white p-4 sm:p-6 sticky top-0 z-30 flex flex-wrap gap-4 justify-between items-center shadow-md">
+        <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2 cursor-pointer whitespace-nowrap" onClick={() => setCurrentView('collection')}>
+          <span className="text-2xl sm:text-3xl">🍴</span>
+          WhatToEat
         </h1>
-        <div className="flex gap-2 overflow-x-auto max-w-full scrollbar-hide">
+        <div className="flex gap-2 overflow-x-auto max-w-full scrollbar-hide pb-1 sm:pb-0">
           <button 
             onClick={() => setCurrentView('collection')}
-            className={`px-4 py-2 rounded-full transition whitespace-nowrap text-sm ${currentView === 'collection' ? 'bg-white text-orange-600 font-bold' : 'hover:bg-orange-600'}`}
+            className={`flex-shrink-0 px-4 py-2 rounded-full transition whitespace-nowrap text-xs sm:text-sm ${currentView === 'collection' ? 'bg-white text-orange-600 font-bold' : 'hover:bg-orange-600'}`}
           >
             我的菜谱
           </button>
           <button 
             onClick={() => setCurrentView('discovery')}
-            className={`px-4 py-2 rounded-full transition whitespace-nowrap text-sm ${currentView === 'discovery' ? 'bg-white text-orange-600 font-bold' : 'hover:bg-orange-600'}`}
+            className={`flex-shrink-0 px-4 py-2 rounded-full transition whitespace-nowrap text-xs sm:text-sm ${currentView === 'discovery' ? 'bg-white text-orange-600 font-bold' : 'hover:bg-orange-600'}`}
           >
             发现灵感
           </button>
           <button 
             onClick={() => setCurrentView('suggest')}
-            className={`px-4 py-2 rounded-full transition whitespace-nowrap text-sm ${currentView === 'suggest' ? 'bg-white text-orange-600 font-bold' : 'hover:bg-orange-600'}`}
+            className={`flex-shrink-0 px-4 py-2 rounded-full transition whitespace-nowrap text-xs sm:text-sm ${currentView === 'suggest' ? 'bg-white text-orange-600 font-bold' : 'hover:bg-orange-600'}`}
           >
             今天做什么？
           </button>
         </div>
       </header>
 
-      <main className="flex-1 p-4 md:p-8 pb-24">
+      <main className="flex-1 p-4 sm:p-6 md:p-8 pb-24 relative z-0 w-full">
         {renderView()}
       </main>
 
       {/* Global Toast */}
       {toast && (
-        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[60] animate-bounce-in">
-           <div className={`px-6 py-3 rounded-2xl shadow-xl flex items-center gap-3 border ${toast.type === 'success' ? 'toast-success' : 'bg-red-600 border-red-500 text-white'}`}>
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[80] animate-bounce-in w-max max-w-[90vw]">
+           <div className={`px-4 sm:px-6 py-3 rounded-2xl shadow-xl flex items-center gap-3 border ${toast.type === 'success' ? 'toast-success' : 'bg-red-600 border-red-500 text-white'}`}>
               <span className="text-lg">{toast.type === 'success' ? '✨' : '❌'}</span>
-              <span className="font-bold text-sm whitespace-nowrap">{toast.message}</span>
+              <span className="font-bold text-xs sm:text-sm whitespace-nowrap">{toast.message}</span>
            </div>
         </div>
       )}
 
-      <footer className="p-6 text-center text-gray-500 text-sm border-t border-gray-100 bg-gray-50 flex items-center justify-between">
+      {/* Delete Confirmation Modal */}
+      {confirmDeleteId && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 w-full max-w-sm shadow-2xl animate-in zoom-in duration-300">
+            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center text-2xl mb-4 mx-auto">🗑️</div>
+            <h3 className="text-xl font-bold text-center text-gray-800 mb-2">确认删除？</h3>
+            <p className="text-gray-500 text-center text-sm mb-6">删除后将无法恢复该菜谱。</p>
+            <div className="flex gap-3">
+              <button onClick={() => setConfirmDeleteId(null)} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">取消</button>
+              <button onClick={executeDeleteDish} className="flex-1 py-3 bg-red-500 text-white font-bold rounded-xl hover:bg-red-600 transition shadow-lg shadow-red-200">确认删除</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <footer className="p-4 sm:p-6 text-center text-gray-500 text-sm border-t border-gray-100 bg-gray-50 flex flex-col sm:flex-row items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-xs font-medium">
           {syncStatus === 'syncing' && (
             <span className="flex items-center gap-1 text-orange-500">

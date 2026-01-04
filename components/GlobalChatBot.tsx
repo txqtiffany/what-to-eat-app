@@ -55,7 +55,7 @@ const GlobalChatBot: React.FC<GlobalChatBotProps> = ({ currentDish, preferences 
   };
 
   return (
-    <div className={`fixed bottom-8 right-8 z-[100] flex flex-col items-end transition-all ${isOpen ? 'w-[90vw] md:w-80 h-[70vh] md:h-[500px]' : 'w-14 h-14'}`}>
+    <div className={`fixed bottom-8 right-8 z-[100] flex flex-col items-end transition-all ${isOpen ? 'w-[90vw] sm:w-96 h-[70vh] sm:h-[500px]' : 'w-14 h-14'}`}>
       {isOpen && (
         <div className="bg-white/95 backdrop-blur-md w-full flex-1 mb-4 rounded-3xl shadow-2xl border border-gray-100 flex flex-col overflow-hidden animate-in zoom-in duration-200 origin-bottom-right">
           <div className="bg-orange-500 p-4 text-white font-bold flex justify-between items-center shadow-lg">
