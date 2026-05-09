@@ -12,15 +12,6 @@ dist
 dist-ssr
 *.local
 
-# Firebase
-.firebase/
-firebase-debug.log
-firestore-debug.log
-
-# Local env (Firebase + Gemini secrets)
-.env
-.env.local
-
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
