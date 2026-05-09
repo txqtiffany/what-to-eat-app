@@ -51,6 +51,33 @@ export interface Dish {
   nutrition?: Nutrition; // 新增：营养信息
   imageUrl?: string;
   createdAt: number;
+  // Cloud-sync metadata (added in Phase 1; older local dishes may not have these
+  // until they are migrated to Firestore).
+  ownerUid?: string;
+  folderId?: string;
+  originalDishId?: string;     // set if this dish was saved-from another user's dish
+  originalOwnerUid?: string;   // attribution for save-copies
+}
+
+export type FolderVisibility = 'private' | 'invite-only' | 'public-link';
+
+export interface Folder {
+  id: string;
+  name: string;
+  creatorUid: string;
+  memberUids: string[];
+  visibility: FolderVisibility;
+  shareToken?: string;
+  createdAt: number;
+}
+
+export interface AppUser {
+  uid: string;
+  displayName: string;
+  email: string;
+  photoURL: string;
+  defaultFolderId: string;
+  createdAt: number;
 }
 
 export interface SuggestedDish {

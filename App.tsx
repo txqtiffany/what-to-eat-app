@@ -5,9 +5,11 @@ import CollectionView from './views/CollectionView';
 import SuggestView from './views/SuggestView';
 import RecipeView from './views/RecipeView';
 import DiscoveryView from './views/DiscoveryView';
+import LoginView from './views/LoginView';
 import GlobalChatBot from './components/GlobalChatBot';
 import { storageService } from './services/storageService';
 import { geminiService } from './services/geminiService';
+import { authService, User } from './services/authService';
 
 interface PendingDish {
   id: string;
@@ -22,12 +24,14 @@ const App: React.FC = () => {
   const [recentlyViewedIds, setRecentlyViewedIds] = useState<string[]>([]);
   const [selectedDishId, setSelectedDishId] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [authReady, setAuthReady] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
   const [syncStatus, setSyncStatus] = useState<'syncing' | 'saved' | 'error'>('saved');
   const [preferences, setPreferences] = useState<UserPreferences>({ flavors: [] });
-  
+
   const [discoveryCache, setDiscoveryCache] = useState<SuggestedDish[]>([]);
   const [toast, setToast] = useState<{message: string, type: 'success' | 'error'} | null>(null);
-  
+
   // Custom Delete Modal State
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
@@ -43,29 +47,63 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
+    const unsub = authService.onAuthChanged(nextUser => {
+      setUser(nextUser);
+      setAuthReady(true);
+      if (!nextUser) {
+        // Signed out: clear in-memory state.
+        setDishes([]);
+        setRecentlyViewedIds([]);
+        setSelectedDishId(null);
+        setCurrentView('collection');
+        setIsInitializing(false);
+      }
+    });
+    return unsub;
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    storageService.setCurrentUser(user);
+
+    let cancelled = false;
     const initApp = async () => {
       try {
+        setIsInitializing(true);
         setSyncStatus('syncing');
         await storageService.init();
-        await storageService.migrateFromLocalStorage();
         const loadedDishes = await storageService.getAllDishes();
         const recentIds = storageService.getRecentlyViewedIds();
         const savedPrefs = storageService.getUserPreferences();
-        
+
+        if (cancelled) return;
         setDishes(loadedDishes.sort((a, b) => b.createdAt - a.createdAt));
         setRecentlyViewedIds(recentIds);
         setPreferences(savedPrefs);
         setSyncStatus('saved');
       } catch (e) {
-        console.error("初始化失败", e);
-        setSyncStatus('error');
+        console.error('初始化失败', e);
+        if (!cancelled) setSyncStatus('error');
       } finally {
-        setTimeout(() => setIsInitializing(false), 800);
+        if (!cancelled) setTimeout(() => setIsInitializing(false), 600);
       }
     };
-
     initApp();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  const handleSignOut = async () => {
+    try {
+      await authService.signOut();
+      storageService.setCurrentUser(null);
+      showToast('已退出登录', 'success');
+    } catch (e) {
+      console.error(e);
+      showToast('退出登录失败', 'error');
+    }
+  };
 
   const addDish = async (dish: Dish) => {
     try {
@@ -270,6 +308,35 @@ const App: React.FC = () => {
     }
   };
 
+  if (!authReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="relative w-20 h-20">
+          <div className="loader-ring"></div>
+          <div className="loader-ring"></div>
+          <div className="loader-ring"></div>
+          <div className="absolute inset-0 flex items-center justify-center text-2xl">🍲</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <>
+        <LoginView onShowToast={showToast} />
+        {toast && (
+          <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[80] animate-bounce-in w-max max-w-[90vw]">
+            <div className={`px-4 sm:px-6 py-3 rounded-2xl shadow-xl flex items-center gap-3 border ${toast.type === 'success' ? 'toast-success' : 'bg-red-600 border-red-500 text-white'}`}>
+              <span className="text-lg">{toast.type === 'success' ? '✨' : '❌'}</span>
+              <span className="font-bold text-xs sm:text-sm whitespace-nowrap">{toast.message}</span>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col w-full max-w-7xl mx-auto bg-white shadow-xl relative">
       <header className="bg-orange-500 text-white p-4 sm:p-6 sticky top-0 z-30 flex flex-wrap gap-4 justify-between items-center shadow-md">
@@ -277,25 +344,46 @@ const App: React.FC = () => {
           <span className="text-2xl sm:text-3xl">🍴</span>
           WhatToEat
         </h1>
-        <div className="flex gap-2 overflow-x-auto max-w-full scrollbar-hide pb-1 sm:pb-0">
-          <button 
+        <div className="flex gap-2 overflow-x-auto max-w-full scrollbar-hide pb-1 sm:pb-0 items-center">
+          <button
             onClick={() => setCurrentView('collection')}
             className={`flex-shrink-0 px-4 py-2 rounded-full transition whitespace-nowrap text-xs sm:text-sm ${currentView === 'collection' ? 'bg-white text-orange-600 font-bold' : 'hover:bg-orange-600'}`}
           >
             我的菜谱
           </button>
-          <button 
+          <button
             onClick={() => setCurrentView('discovery')}
             className={`flex-shrink-0 px-4 py-2 rounded-full transition whitespace-nowrap text-xs sm:text-sm ${currentView === 'discovery' ? 'bg-white text-orange-600 font-bold' : 'hover:bg-orange-600'}`}
           >
             发现灵感
           </button>
-          <button 
+          <button
             onClick={() => setCurrentView('suggest')}
             className={`flex-shrink-0 px-4 py-2 rounded-full transition whitespace-nowrap text-xs sm:text-sm ${currentView === 'suggest' ? 'bg-white text-orange-600 font-bold' : 'hover:bg-orange-600'}`}
           >
             今天做什么？
           </button>
+          <div className="flex-shrink-0 ml-2 flex items-center gap-2 pl-2 sm:pl-3 border-l border-orange-300/60">
+            {user.photoURL ? (
+              <img
+                src={user.photoURL}
+                alt={user.displayName ?? user.email ?? 'me'}
+                referrerPolicy="no-referrer"
+                className="w-7 h-7 rounded-full border border-white/60"
+              />
+            ) : (
+              <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold">
+                {(user.displayName ?? user.email ?? '?').charAt(0).toUpperCase()}
+              </div>
+            )}
+            <button
+              onClick={handleSignOut}
+              className="px-3 py-1.5 rounded-full text-xs font-bold bg-white/15 hover:bg-white/25 transition whitespace-nowrap"
+              title="退出登录"
+            >
+              退出
+            </button>
+          </div>
         </div>
       </header>
 
@@ -339,7 +427,13 @@ const App: React.FC = () => {
           {syncStatus === 'saved' && (
             <span className="flex items-center gap-1 text-green-600">
               <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path></svg>
-              已保存到本地
+              已同步到云端
+            </span>
+          )}
+          {syncStatus === 'error' && (
+            <span className="flex items-center gap-1 text-red-500">
+              <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+              同步失败
             </span>
           )}
         </div>
